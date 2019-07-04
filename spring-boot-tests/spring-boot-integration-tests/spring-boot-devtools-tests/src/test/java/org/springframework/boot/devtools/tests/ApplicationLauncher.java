@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2018 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,10 +26,9 @@ import java.io.File;
  */
 public interface ApplicationLauncher {
 
-	LaunchedApplication launchApplication(JvmLauncher javaLauncher, File serverPortFile)
-			throws Exception;
+	LaunchedApplication launchApplication(JvmLauncher javaLauncher, File serverPortFile) throws Exception;
 
-	LaunchedApplication launchApplication(JvmLauncher jvmLauncher, File serverPortFile,
-			String... additionalArgs) throws Exception;
+	LaunchedApplication launchApplication(JvmLauncher jvmLauncher, File serverPortFile, String... additionalArgs)
+			throws Exception;
 
 }

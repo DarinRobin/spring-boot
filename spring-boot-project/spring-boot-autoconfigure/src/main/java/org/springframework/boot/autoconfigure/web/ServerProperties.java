@@ -24,10 +24,11 @@ import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.TimeZone;
+
+import io.undertow.UndertowOptions;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.DeprecatedConfigurationProperty;
@@ -42,7 +43,8 @@ import org.springframework.util.StringUtils;
 import org.springframework.util.unit.DataSize;
 
 /**
- * {@link ConfigurationProperties} for a web server (e.g. port and path settings).
+ * {@link ConfigurationProperties @ConfigurationProperties} for a web server (e.g. port
+ * and path settings).
  *
  * @author Dave Syer
  * @author Stephane Nicoll
@@ -58,6 +60,8 @@ import org.springframework.util.unit.DataSize;
  * @author Chentao Qu
  * @author Artsiom Yudovin
  * @author Andrew McGhie
+ * @author Rafiullah Hamedy
+ * @since 1.0.0
  */
 @ConfigurationProperties(prefix = "server", ignoreUnknownFields = true)
 public class ServerProperties {
@@ -74,11 +78,6 @@ public class ServerProperties {
 
 	@NestedConfigurationProperty
 	private final ErrorProperties error = new ErrorProperties();
-
-	/**
-	 * Whether X-Forwarded-* headers should be applied to the HttpRequest.
-	 */
-	private Boolean useForwardHeaders;
 
 	/**
 	 * Strategy for handling X-Forwarded-* headers.
@@ -135,18 +134,15 @@ public class ServerProperties {
 		this.address = address;
 	}
 
-	@DeprecatedConfigurationProperty
+	@DeprecatedConfigurationProperty(reason = "replaced to support additional strategies",
+			replacement = "server.forward-headers-strategy")
 	public Boolean isUseForwardHeaders() {
 		return ForwardHeadersStrategy.NATIVE.equals(this.forwardHeadersStrategy);
 	}
 
 	public void setUseForwardHeaders(Boolean useForwardHeaders) {
-		if (useForwardHeaders != null && useForwardHeaders) {
-			this.forwardHeadersStrategy = ForwardHeadersStrategy.NATIVE;
-		}
-		else {
-			this.forwardHeadersStrategy = ForwardHeadersStrategy.NONE;
-		}
+		this.forwardHeadersStrategy = Boolean.TRUE.equals(useForwardHeaders) ? ForwardHeadersStrategy.NATIVE
+				: ForwardHeadersStrategy.NONE;
 	}
 
 	public String getServerHeader() {
@@ -299,8 +295,7 @@ public class ServerProperties {
 				+ "169\\.254\\.\\d{1,3}\\.\\d{1,3}|" // 169.254/16
 				+ "127\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|" // 127/8
 				+ "172\\.1[6-9]{1}\\.\\d{1,3}\\.\\d{1,3}|" // 172.16/12
-				+ "172\\.2[0-9]{1}\\.\\d{1,3}\\.\\d{1,3}|"
-				+ "172\\.3[0-1]{1}\\.\\d{1,3}\\.\\d{1,3}|" //
+				+ "172\\.2[0-9]{1}\\.\\d{1,3}\\.\\d{1,3}|" + "172\\.3[0-1]{1}\\.\\d{1,3}\\.\\d{1,3}|" //
 				+ "0:0:0:0:0:0:0:1|::1";
 
 		/**
@@ -404,6 +399,11 @@ public class ServerProperties {
 		 * Static resource configuration.
 		 */
 		private final Resource resource = new Resource();
+
+		/**
+		 * Modeler MBean Registry configuration.
+		 */
+		private final Mbeanregistry mbeanregistry = new Mbeanregistry();
 
 		public int getMaxThreads() {
 			return this.maxThreads;
@@ -555,6 +555,10 @@ public class ServerProperties {
 
 		public Resource getResource() {
 			return this.resource;
+		}
+
+		public Mbeanregistry getMbeanregistry() {
+			return this.mbeanregistry;
 		}
 
 		/**
@@ -826,6 +830,23 @@ public class ServerProperties {
 
 		}
 
+		public static class Mbeanregistry {
+
+			/**
+			 * Whether Tomcat's MBean Registry should be enabled.
+			 */
+			private boolean enabled;
+
+			public boolean isEnabled() {
+				return this.enabled;
+			}
+
+			public void setEnabled(boolean enabled) {
+				this.enabled = enabled;
+			}
+
+		}
+
 	}
 
 	/**
@@ -894,6 +915,17 @@ public class ServerProperties {
 			private boolean enabled = false;
 
 			/**
+			 * Log format.
+			 */
+			private FORMAT format = FORMAT.NCSA;
+
+			/**
+			 * Custom log format, see org.eclipse.jetty.server.CustomRequestLog. If
+			 * defined, overrides the "format" configuration key.
+			 */
+			private String customFormat;
+
+			/**
 			 * Log filename. If not specified, logs redirect to "System.err".
 			 */
 			private String filename;
@@ -914,39 +946,9 @@ public class ServerProperties {
 			private boolean append;
 
 			/**
-			 * Enable extended NCSA format.
+			 * Request paths that should not be logged.
 			 */
-			private boolean extendedFormat;
-
-			/**
-			 * Timestamp format of the request log.
-			 */
-			private String dateFormat = "dd/MMM/yyyy:HH:mm:ss Z";
-
-			/**
-			 * Locale of the request log.
-			 */
-			private Locale locale;
-
-			/**
-			 * Timezone of the request log.
-			 */
-			private TimeZone timeZone = TimeZone.getTimeZone("GMT");
-
-			/**
-			 * Enable logging of the request cookies.
-			 */
-			private boolean logCookies;
-
-			/**
-			 * Enable logging of the request hostname.
-			 */
-			private boolean logServer;
-
-			/**
-			 * Enable logging of request processing time.
-			 */
-			private boolean logLatency;
+			private List<String> ignorePaths;
 
 			public boolean isEnabled() {
 				return this.enabled;
@@ -954,6 +956,22 @@ public class ServerProperties {
 
 			public void setEnabled(boolean enabled) {
 				this.enabled = enabled;
+			}
+
+			public FORMAT getFormat() {
+				return this.format;
+			}
+
+			public void setFormat(FORMAT format) {
+				this.format = format;
+			}
+
+			public String getCustomFormat() {
+				return this.customFormat;
+			}
+
+			public void setCustomFormat(String customFormat) {
+				this.customFormat = customFormat;
 			}
 
 			public String getFilename() {
@@ -988,60 +1006,30 @@ public class ServerProperties {
 				this.append = append;
 			}
 
-			public boolean isExtendedFormat() {
-				return this.extendedFormat;
+			public List<String> getIgnorePaths() {
+				return this.ignorePaths;
 			}
 
-			public void setExtendedFormat(boolean extendedFormat) {
-				this.extendedFormat = extendedFormat;
+			public void setIgnorePaths(List<String> ignorePaths) {
+				this.ignorePaths = ignorePaths;
 			}
 
-			public String getDateFormat() {
-				return this.dateFormat;
-			}
+			/**
+			 * Log format for Jetty access logs.
+			 */
+			public enum FORMAT {
 
-			public void setDateFormat(String dateFormat) {
-				this.dateFormat = dateFormat;
-			}
+				/**
+				 * NCSA format, as defined in CustomRequestLog#NCSA_FORMAT.
+				 */
+				NCSA,
 
-			public Locale getLocale() {
-				return this.locale;
-			}
+				/**
+				 * Extended NCSA format, as defined in
+				 * CustomRequestLog#EXTENDED_NCSA_FORMAT.
+				 */
+				EXTENDED_NCSA
 
-			public void setLocale(Locale locale) {
-				this.locale = locale;
-			}
-
-			public TimeZone getTimeZone() {
-				return this.timeZone;
-			}
-
-			public void setTimeZone(TimeZone timeZone) {
-				this.timeZone = timeZone;
-			}
-
-			public boolean isLogCookies() {
-				return this.logCookies;
-			}
-
-			public void setLogCookies(boolean logCookies) {
-				this.logCookies = logCookies;
-			}
-
-			public boolean isLogServer() {
-				return this.logServer;
-			}
-
-			public void setLogServer(boolean logServer) {
-				this.logServer = logServer;
-			}
-
-			public boolean isLogLatency() {
-				return this.logLatency;
-			}
-
-			public void setLogLatency(boolean logLatency) {
-				this.logLatency = logLatency;
 			}
 
 		}
@@ -1087,7 +1075,52 @@ public class ServerProperties {
 		 */
 		private boolean eagerFilterInit = true;
 
+		/**
+		 * Maximum number of query or path parameters that are allowed. This limit exists
+		 * to prevent hash collision based DOS attacks.
+		 */
+		private int maxParameters = UndertowOptions.DEFAULT_MAX_PARAMETERS;
+
+		/**
+		 * Maximum number of headers that are allowed. This limit exists to prevent hash
+		 * collision based DOS attacks.
+		 */
+		private int maxHeaders = UndertowOptions.DEFAULT_MAX_HEADERS;
+
+		/**
+		 * Maximum number of cookies that are allowed. This limit exists to prevent hash
+		 * collision based DOS attacks.
+		 */
+		private int maxCookies = 200;
+
+		/**
+		 * Whether the server should decode percent encoded slash characters. Enabling
+		 * encoded slashes can have security implications due to different servers
+		 * interpreting the slash differently. Only enable this if you have a legacy
+		 * application that requires it.
+		 */
+		private boolean allowEncodedSlash = false;
+
+		/**
+		 * Whether the URL should be decoded. When disabled, percent-encoded characters in
+		 * the URL will be left as-is.
+		 */
+		private boolean decodeUrl = true;
+
+		/**
+		 * Charset used to decode URLs.
+		 */
+		private Charset urlCharset = StandardCharsets.UTF_8;
+
+		/**
+		 * Whether the 'Connection: keep-alive' header should be added to all responses,
+		 * even if not required by the HTTP specification.
+		 */
+		private boolean alwaysSetKeepAlive = true;
+
 		private final Accesslog accesslog = new Accesslog();
+
+		private final Options options = new Options();
 
 		public DataSize getMaxHttpPostSize() {
 			return this.maxHttpPostSize;
@@ -1137,8 +1170,68 @@ public class ServerProperties {
 			this.eagerFilterInit = eagerFilterInit;
 		}
 
+		public int getMaxParameters() {
+			return this.maxParameters;
+		}
+
+		public void setMaxParameters(Integer maxParameters) {
+			this.maxParameters = maxParameters;
+		}
+
+		public int getMaxHeaders() {
+			return this.maxHeaders;
+		}
+
+		public void setMaxHeaders(int maxHeaders) {
+			this.maxHeaders = maxHeaders;
+		}
+
+		public Integer getMaxCookies() {
+			return this.maxCookies;
+		}
+
+		public void setMaxCookies(Integer maxCookies) {
+			this.maxCookies = maxCookies;
+		}
+
+		public boolean isAllowEncodedSlash() {
+			return this.allowEncodedSlash;
+		}
+
+		public void setAllowEncodedSlash(boolean allowEncodedSlash) {
+			this.allowEncodedSlash = allowEncodedSlash;
+		}
+
+		public boolean isDecodeUrl() {
+			return this.decodeUrl;
+		}
+
+		public void setDecodeUrl(Boolean decodeUrl) {
+			this.decodeUrl = decodeUrl;
+		}
+
+		public Charset getUrlCharset() {
+			return this.urlCharset;
+		}
+
+		public void setUrlCharset(Charset urlCharset) {
+			this.urlCharset = urlCharset;
+		}
+
+		public boolean isAlwaysSetKeepAlive() {
+			return this.alwaysSetKeepAlive;
+		}
+
+		public void setAlwaysSetKeepAlive(boolean alwaysSetKeepAlive) {
+			this.alwaysSetKeepAlive = alwaysSetKeepAlive;
+		}
+
 		public Accesslog getAccesslog() {
 			return this.accesslog;
+		}
+
+		public Options getOptions() {
+			return this.options;
 		}
 
 		/**
@@ -1226,8 +1319,27 @@ public class ServerProperties {
 
 		}
 
+		public static class Options {
+
+			private Map<String, String> socket = new LinkedHashMap<>();
+
+			private Map<String, String> server = new LinkedHashMap<>();
+
+			public Map<String, String> getServer() {
+				return this.server;
+			}
+
+			public Map<String, String> getSocket() {
+				return this.socket;
+			}
+
+		}
+
 	}
 
+	/**
+	 * Strategies for supporting forward headers.
+	 */
 	public enum ForwardHeadersStrategy {
 
 		/**

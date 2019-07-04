@@ -29,13 +29,13 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties("spring.rsocket")
 public class RSocketProperties {
 
-	private Server server = new Server();
+	private final Server server = new Server();
 
 	public Server getServer() {
 		return this.server;
 	}
 
-	static class Server {
+	public static class Server {
 
 		/**
 		 * Server port.

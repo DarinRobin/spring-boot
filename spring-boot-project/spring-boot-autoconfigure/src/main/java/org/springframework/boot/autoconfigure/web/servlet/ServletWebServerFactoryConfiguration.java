@@ -32,11 +32,14 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.SearchStrategy;
+import org.springframework.boot.web.embedded.jetty.JettyServerCustomizer;
 import org.springframework.boot.web.embedded.jetty.JettyServletWebServerFactory;
 import org.springframework.boot.web.embedded.tomcat.TomcatConnectorCustomizer;
 import org.springframework.boot.web.embedded.tomcat.TomcatContextCustomizer;
 import org.springframework.boot.web.embedded.tomcat.TomcatProtocolHandlerCustomizer;
 import org.springframework.boot.web.embedded.tomcat.TomcatServletWebServerFactory;
+import org.springframework.boot.web.embedded.undertow.UndertowBuilderCustomizer;
+import org.springframework.boot.web.embedded.undertow.UndertowDeploymentInfoCustomizer;
 import org.springframework.boot.web.embedded.undertow.UndertowServletWebServerFactory;
 import org.springframework.boot.web.servlet.server.ServletWebServerFactory;
 import org.springframework.context.annotation.Bean;
@@ -54,14 +57,14 @@ import org.springframework.context.annotation.Configuration;
  * @author Brian Clozel
  * @author Stephane Nicoll
  * @author Raheela Asalm
+ * @author Sergey Serdyuk
  */
 @Configuration(proxyBeanMethods = false)
 class ServletWebServerFactoryConfiguration {
 
 	@Configuration(proxyBeanMethods = false)
 	@ConditionalOnClass({ Servlet.class, Tomcat.class, UpgradeProtocol.class })
-	@ConditionalOnMissingBean(value = ServletWebServerFactory.class,
-			search = SearchStrategy.CURRENT)
+	@ConditionalOnMissingBean(value = ServletWebServerFactory.class, search = SearchStrategy.CURRENT)
 	public static class EmbeddedTomcat {
 
 		@Bean
@@ -70,13 +73,12 @@ class ServletWebServerFactoryConfiguration {
 				ObjectProvider<TomcatContextCustomizer> contextCustomizers,
 				ObjectProvider<TomcatProtocolHandlerCustomizer<?>> protocolHandlerCustomizers) {
 			TomcatServletWebServerFactory factory = new TomcatServletWebServerFactory();
-			factory.getTomcatConnectorCustomizers().addAll(
-					connectorCustomizers.orderedStream().collect(Collectors.toList()));
-			factory.getTomcatContextCustomizers().addAll(
-					contextCustomizers.orderedStream().collect(Collectors.toList()));
+			factory.getTomcatConnectorCustomizers()
+					.addAll(connectorCustomizers.orderedStream().collect(Collectors.toList()));
+			factory.getTomcatContextCustomizers()
+					.addAll(contextCustomizers.orderedStream().collect(Collectors.toList()));
 			factory.getTomcatProtocolHandlerCustomizers()
-					.addAll(protocolHandlerCustomizers.orderedStream()
-							.collect(Collectors.toList()));
+					.addAll(protocolHandlerCustomizers.orderedStream().collect(Collectors.toList()));
 			return factory;
 		}
 
@@ -86,15 +88,16 @@ class ServletWebServerFactoryConfiguration {
 	 * Nested configuration if Jetty is being used.
 	 */
 	@Configuration(proxyBeanMethods = false)
-	@ConditionalOnClass({ Servlet.class, Server.class, Loader.class,
-			WebAppContext.class })
-	@ConditionalOnMissingBean(value = ServletWebServerFactory.class,
-			search = SearchStrategy.CURRENT)
+	@ConditionalOnClass({ Servlet.class, Server.class, Loader.class, WebAppContext.class })
+	@ConditionalOnMissingBean(value = ServletWebServerFactory.class, search = SearchStrategy.CURRENT)
 	public static class EmbeddedJetty {
 
 		@Bean
-		public JettyServletWebServerFactory JettyServletWebServerFactory() {
-			return new JettyServletWebServerFactory();
+		public JettyServletWebServerFactory JettyServletWebServerFactory(
+				ObjectProvider<JettyServerCustomizer> serverCustomizers) {
+			JettyServletWebServerFactory factory = new JettyServletWebServerFactory();
+			factory.getServerCustomizers().addAll(serverCustomizers.orderedStream().collect(Collectors.toList()));
+			return factory;
 		}
 
 	}
@@ -104,13 +107,18 @@ class ServletWebServerFactoryConfiguration {
 	 */
 	@Configuration(proxyBeanMethods = false)
 	@ConditionalOnClass({ Servlet.class, Undertow.class, SslClientAuthMode.class })
-	@ConditionalOnMissingBean(value = ServletWebServerFactory.class,
-			search = SearchStrategy.CURRENT)
+	@ConditionalOnMissingBean(value = ServletWebServerFactory.class, search = SearchStrategy.CURRENT)
 	public static class EmbeddedUndertow {
 
 		@Bean
-		public UndertowServletWebServerFactory undertowServletWebServerFactory() {
-			return new UndertowServletWebServerFactory();
+		public UndertowServletWebServerFactory undertowServletWebServerFactory(
+				ObjectProvider<UndertowDeploymentInfoCustomizer> deploymentInfoCustomizers,
+				ObjectProvider<UndertowBuilderCustomizer> builderCustomizers) {
+			UndertowServletWebServerFactory factory = new UndertowServletWebServerFactory();
+			factory.getDeploymentInfoCustomizers()
+					.addAll(deploymentInfoCustomizers.orderedStream().collect(Collectors.toList()));
+			factory.getBuilderCustomizers().addAll(builderCustomizers.orderedStream().collect(Collectors.toList()));
+			return factory;
 		}
 
 	}

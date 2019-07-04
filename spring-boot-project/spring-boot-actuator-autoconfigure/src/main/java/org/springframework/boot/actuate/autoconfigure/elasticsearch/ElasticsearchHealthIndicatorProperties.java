@@ -22,6 +22,7 @@ import java.util.List;
 
 import org.springframework.boot.actuate.elasticsearch.ElasticsearchHealthIndicator;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.DeprecatedConfigurationProperty;
 
 /**
  * External configuration properties for {@link ElasticsearchHealthIndicator}.
@@ -29,9 +30,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @author Binwei Yang
  * @author Andy Wilkinson
  * @since 2.0.0
+ * @deprecated since 2.2.0 as {@literal org.elasticsearch.client:transport} has been
+ * deprecated upstream
  */
-@ConfigurationProperties(prefix = "management.health.elasticsearch",
-		ignoreUnknownFields = false)
+@ConfigurationProperties(prefix = "management.health.elasticsearch", ignoreUnknownFields = false)
+@Deprecated
 public class ElasticsearchHealthIndicatorProperties {
 
 	/**
@@ -44,6 +47,7 @@ public class ElasticsearchHealthIndicatorProperties {
 	 */
 	private Duration responseTimeout = Duration.ofMillis(100);
 
+	@DeprecatedConfigurationProperty(reason = "Upstream elasticsearch transport is deprected")
 	public List<String> getIndices() {
 		return this.indices;
 	}
@@ -52,6 +56,7 @@ public class ElasticsearchHealthIndicatorProperties {
 		this.indices = indices;
 	}
 
+	@DeprecatedConfigurationProperty(reason = "Upstream elasticsearch transport is deprected")
 	public Duration getResponseTimeout() {
 		return this.responseTimeout;
 	}
